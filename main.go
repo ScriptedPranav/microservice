@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/ScriptedPranav/microservice/handlers"
@@ -25,5 +27,21 @@ func main() {
 		ReadTimeout: 1*time.Second,
 		WriteTimeout: 1*time.Second,
 	}
-	s.ListenAndServe()
+
+	go func() {
+		err := s.ListenAndServe()
+		if err != nil {
+			l.Fatal(err)
+		}
+	}()
+
+	signalChan := make(chan os.Signal)
+	signal.Notify(signalChan,os.Interrupt)
+	signal.Notify(signalChan,os.Kill)
+
+	sig := <-signalChan
+	l.Println(sig)
+	tc, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	s.Shutdown(tc)
 }
