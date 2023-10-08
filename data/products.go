@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+	"fmt"
 )
 
 type Product struct {
@@ -15,6 +16,11 @@ type Product struct {
 	CreatedOn   string `json:"-"` // - means ignore this field
 	UpdatedOn   string `json:"-"`
 	DeletedOn   string	`json:"-"` // ,omitempty means ignore this field if it is empty
+}
+
+func (p *Product) FromJSON(r *http.Request) error {
+	e := json.NewDecoder(r.Body)
+	return e.Decode(p)
 }
 
 type Products []*Product
@@ -29,6 +35,37 @@ func (p *Products) ToJSON(w http.ResponseWriter) error {
 //Abstract the logic of reading from Database
 func GetProducts() Products {
 	return productsList
+}
+
+func AddProduct(p *Product) {
+	p.ID = getNextID()
+	productsList = append(productsList,p)
+}
+
+func getNextID() int {
+	lp := productsList[len(productsList)-1]
+	return lp.ID + 1
+}
+
+var ErrProductNotFound =  fmt.Errorf("Product not found")
+
+func UpdateProduct(id int, p *Product) error {
+	_,pos,err := findProduct(id)
+	if err != nil {
+		return err
+	}
+	p.ID = id
+	productsList[pos] = p
+	return nil
+}
+
+func findProduct(id int) (*Product,int,error) {
+	for i,p := range productsList {
+		if p.ID == id {
+			return p,i,nil
+		}
+	}
+	return nil,-1,ErrProductNotFound
 }
 
 var productsList = []*Product{
