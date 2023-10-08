@@ -7,20 +7,27 @@ import (
 	"os"
 	"os/signal"
 	"time"
-
 	"github.com/ScriptedPranav/microservice/handlers"
+	"github.com/gorilla/mux"
 )
 
 func main() {
 	l := log.New(os.Stdout,"product-api",log.LstdFlags)
 
-	helloHandler := handlers.NewHello(l)
-	goodbyeHandler := handlers.NewGoodbye(l)
+
 	productHandler := handlers.NewProducts(l)
-	sm :=  http.NewServeMux()
-	sm.Handle("/hello",helloHandler)
-	sm.Handle("/goodbye",goodbyeHandler)
-	sm.Handle("/products",productHandler)
+	sm :=  mux.NewRouter()
+
+	getRouter := sm.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/products",productHandler.GetProducts)
+
+	putRouter := sm.Methods(http.MethodPut).Subrouter()
+	putRouter.HandleFunc("/products/{id:[0-9]+}",productHandler.UpdateProduct)
+	putRouter.Use(productHandler.MiddlewareProductValidation)
+
+	postRouter := sm.Methods(http.MethodPost).Subrouter()
+	postRouter.HandleFunc("/products",productHandler.AddProduct)
+	postRouter.Use(productHandler.MiddlewareProductValidation)
 
 	s := &http.Server{
 		Addr : ":8080",
