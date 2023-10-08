@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-
 	products "github.com/ScriptedPranav/microservice/data"
 	"github.com/gorilla/mux"
 )

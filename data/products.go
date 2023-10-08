@@ -2,22 +2,37 @@ package products
 
 import (
 	"encoding/json"
-	"net/http"
-	"time"
 	"fmt"
+	"github.com/go-playground/validator/v10"
+	"net/http"
+	"regexp"
+	"time"
 )
 
 type Product struct {
-	ID          int `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Price       float32 `json:"price"`
-	SKU         string `json:"sku"`
-	CreatedOn   string `json:"-"` // - means ignore this field
-	UpdatedOn   string `json:"-"`
-	DeletedOn   string	`json:"-"` // ,omitempty means ignore this field if it is empty
+	ID          int     `json:"id"`
+	Name        string  `json:"name" validate:"required"`
+	Description string  `json:"description"`
+	Price       float32 `json:"price" validate:"gt=0"`
+	SKU         string  `json:"sku" validate:"required,sku"`
+	CreatedOn   string  `json:"-"` // - means ignore this field
+	UpdatedOn   string  `json:"-"`
+	DeletedOn   string  `json:"-"` // ,omitempty means ignore this field if it is empty
 }
 
+func (p *Product) Validate() error {
+	validate := validator.New()
+	validate.RegisterValidation("sku", validateSKU)
+	return validate.Struct(p)
+}
+func validateSKU(fl validator.FieldLevel) bool {
+	reg := regexp.MustCompile(`[a-z]+-[a-z]+-[a-z]+`)
+	matches := reg.FindAllString(fl.Field().String(), -1)
+	if len(matches) != 1 {
+		return false
+	}
+	return true
+}
 func (p *Product) FromJSON(r *http.Request) error {
 	e := json.NewDecoder(r.Body)
 	return e.Decode(p)
@@ -25,21 +40,21 @@ func (p *Product) FromJSON(r *http.Request) error {
 
 type Products []*Product
 
-//Abstract the logic of writing to JSON
+// Abstract the logic of writing to JSON
 func (p *Products) ToJSON(w http.ResponseWriter) error {
 	//this directly encodes the data to the writer in JSON format without having to create a buffer which is memory efficient
 	e := json.NewEncoder(w)
 	return e.Encode(p)
 }
 
-//Abstract the logic of reading from Database
+// Abstract the logic of reading from Database
 func GetProducts() Products {
 	return productsList
 }
 
 func AddProduct(p *Product) {
 	p.ID = getNextID()
-	productsList = append(productsList,p)
+	productsList = append(productsList, p)
 }
 
 func getNextID() int {
@@ -47,10 +62,10 @@ func getNextID() int {
 	return lp.ID + 1
 }
 
-var ErrProductNotFound =  fmt.Errorf("Product not found")
+var ErrProductNotFound = fmt.Errorf("Product not found")
 
 func UpdateProduct(id int, p *Product) error {
-	_,pos,err := findProduct(id)
+	_, pos, err := findProduct(id)
 	if err != nil {
 		return err
 	}
@@ -59,13 +74,13 @@ func UpdateProduct(id int, p *Product) error {
 	return nil
 }
 
-func findProduct(id int) (*Product,int,error) {
-	for i,p := range productsList {
+func findProduct(id int) (*Product, int, error) {
+	for i, p := range productsList {
 		if p.ID == id {
-			return p,i,nil
+			return p, i, nil
 		}
 	}
-	return nil,-1,ErrProductNotFound
+	return nil, -1, ErrProductNotFound
 }
 
 var productsList = []*Product{
