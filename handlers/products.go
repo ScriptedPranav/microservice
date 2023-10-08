@@ -3,6 +3,8 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"regexp"
+	"strconv"
 
 	products "github.com/ScriptedPranav/microservice/data"
 )
@@ -24,9 +26,35 @@ func (p *Products) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		p.addProduct(w,r)
 		return
 	}
+	if r.Method == http.MethodPut {
+		p.l.Println("PUT",r.URL.Path)
+		//expect the id in the URI
+		reg := regexp.MustCompile(`/([0-9]+)`)
+		g := reg.FindAllStringSubmatch(r.URL.Path,-1)
+		if len(g) != 1 {
+			http.Error(w,"Invalid URI",http.StatusBadRequest)
+			return
+		}
+		if len(g[0]) != 2 {
+			http.Error(w,"Invalid URI",http.StatusBadRequest)
+			return
+		}
+		idString := g[0][1]
+		//convert the idString to int
+		id,err := strconv.Atoi(idString)
+		if err != nil {
+			http.Error(w,"Invalid URI",http.StatusBadRequest)
+			return
+		}
+		
+		p.updateProduct(id,w,r)
+		return
+	}
 	//catch all
 	w.WriteHeader(http.StatusMethodNotAllowed)
 }
+
+
 func (p *Products) getProducts(w http.ResponseWriter, r *http.Request) {
 	lp := products.GetProducts()
 	err := lp.ToJSON(w)
